@@ -3,7 +3,6 @@ from .preprocessing import *
 from .postprocessing import *
 from .metrics import *
 from .stitch import *
-from .cell_typing import *
 from .tissue_mapping import *
 from .Points2Cell import *
 import random
@@ -17,6 +16,8 @@ from sklearn.metrics import adjusted_rand_score
 from skimage.color import label2rgb
 from tqdm import tqdm
 from sklearn.neighbors import LocalOutlierFactor
+from matplotlib.colors import ListedColormap
+from anndata import AnnData
 
 class ClusterMap():
 
@@ -73,15 +74,18 @@ class ClusterMap():
         
 
         self.spots['clustermap'] = -1
+        
+
+        
         # Let's keep only the spots' labels
         self.spots.loc[spots_denoised.loc[:, 'index'], 'clustermap'] = cell_ids[:len(ngc)]
         
         print('Postprocessing')
         erase_small_clusters(self.spots,self.min_spot_per_cell)
-        res_over_dapi_erosion(self.spots, self.dapi_binary)
+#         res_over_dapi_erosion(self.spots, self.dapi_binary)
         
+        # Keep all spots id for plotting
         is_remain=np.in1d(cell_ids, self.spots['clustermap'].unique())
-        
         self.all_points=all_coord[is_remain]
         self.all_points_cellid=cell_ids[is_remain]        
         
@@ -105,8 +109,9 @@ class ClusterMap():
         img_res = np.zeros(self.dapi_stacked.shape)
         for cell in cells_unique:
             spots_portion = np.array(spots_repr[cell_ids==cell,:2])
-            clf = LocalOutlierFactor(n_neighbors=3)
-            spots_portion = spots_portion[clf.fit_predict(spots_portion)==1,:]
+            spots_portion=reject_outliers(spots_portion)
+#             clf = LocalOutlierFactor(n_neighbors=3)
+#             spots_portion = spots_portion[clf.fit_predict(spots_portion)==1,:]
             cell_mask = np.zeros(img_res.shape)
             cell_mask[spots_portion[:,0]-1, spots_portion[:,1]-1] = 1
             cell_ch = convex_hull_image(cell_mask)
@@ -117,22 +122,47 @@ class ClusterMap():
         plt.figure(figsize=figsize)
         plt.imshow(img_res_rgb, origin='lower')
         plt.title('Cell Shape with Convex Hull')        
+    
+    def plot_gene(self,marker_genes, genes_list, figsize=(5,5),c='r',s=1):
+        for i in range(len(marker_genes)):
+            plt.figure(figsize=figsize)
+            plt.imshow(np.sum(self.dapi_binary,axis=2),origin='lower', cmap='binary_r')
+            plt.scatter(self.spots.loc[self.spots['gene']==1+genes_list.index(marker_genes[i]),'spot_location_1'],
+                        self.spots.loc[self.spots['gene']==1+genes_list.index(marker_genes[i]),'spot_location_2'],
+                        c=c,s=s)
+            plt.title(marker_genes[i])
+            plt.show()
         
-    def plot_segmentation(self,figsize=(10,10),plot_dapi=False,method='clustermap',s=5,show=True,save=False,savepath=None):
-        spots_repr = self.spots.loc[self.spots[method]>=0,:]
+        
+    def plot_segmentation(self,figsize=(10,10),plot_with_dapi=True, plot_dapi=False,method='clustermap',s=5,cmap=None, show=True,save=False,savepath=None):
+        
+        cell_ids = self.spots[method]
+        cells_unique = np.unique(cell_ids)
+        spots_repr = np.array(self.spots[['spot_location_2', 'spot_location_1']])[cell_ids>=0]
+        cell_ids=cell_ids[cell_ids>=0]
+        
+        if method == 'clustermap':
+            if plot_with_dapi:
+                cell_ids = self.all_points_cellid
+                cells_unique = np.unique(cell_ids)
+                spots_repr = self.all_points[cell_ids>=0]
+                cell_ids=cell_ids[cell_ids>=0]
+
+        
         if not show:
             plt.ioff()
         plt.figure(figsize=figsize)
-        cmap=np.random.rand(int(max(self.spots[method])+1),3)
-        palette = list(np.random.rand(len(spots_repr[method].unique()),3)) #sns.color_palette('gist_ncar', len(spots_repr['clustermap'].unique()))
+        if cmap is None:
+            cmap=np.random.rand(int(max(cell_ids)+1),3)
+        
         if plot_dapi:
             plt.imshow(np.sum(self.dapi_binary,axis=2),origin='lower', cmap='binary_r')
-            plt.scatter(spots_repr['spot_location_1'],spots_repr['spot_location_2'],
-            c=cmap[[int(x) for x in spots_repr[method]]],s=s)
+            plt.scatter(spots_repr[:,1],spots_repr[:,0],
+            c=cmap[[int(x) for x in cell_ids]],s=s)
         else:
-            plt.scatter(spots_repr['spot_location_1'],spots_repr['spot_location_2'],
-            c=cmap[[int(x) for x in spots_repr[method]]],s=s)
-#             sns.scatterplot(x='spot_location_1', y='spot_location_2', data=spots_repr, hue=method, palette=palette, legend=False)
+            plt.scatter(spots_repr[:,1],spots_repr[:,0],
+            c=cmap[[int(x) for x in cell_ids]],s=s)
+
         plt.title('Segmentation')
         if save:
             plt.savefig(savepath)
@@ -150,9 +180,134 @@ class ClusterMap():
         return(self.underseg, self.overseg)
     
         
-    def save(self, path_save):
-        self.spots.to_csv(path_save, index=False)
+    def save_segmentation(self, path_save):
         
+        self.spots.to_csv(path_save, index=False)
+    
+    def create_cell_adata(self,cellid, geneid, gene_list, genes, num_dims):
+        
+        ### find unique cell id
+        cellid_unique=self.spots[cellid].unique()
+        cellid_unique=cellid_unique[cellid_unique>=0]
+        self.cellid_unique=cellid_unique
+        
+        ### compute cell x gene matrix and obs
+        gene_expr_vector = np.zeros((len(cellid_unique), len(gene_list)))
+        obs=np.zeros((len(cellid_unique),num_dims))
+        gene_expr=self.spots.groupby([cellid, geneid]).size()
+        for ind,i in enumerate(cellid_unique):
+            gene_expr_vector[ind, gene_expr[i].index-np.min(gene_list)] = gene_expr[i].to_numpy()
+            obs[ind,:]=self.cellcenter[int(i),:]
+            
+        obs=pd.DataFrame(data=obs,columns=['col','row','z'])
+        var = pd.DataFrame(index=genes[0])
+        self.cell_adata = AnnData(X=gene_expr_vector, var=var, obs=obs)
+        
+    def cell_typing(self, min_genes=2, min_cells=2, min_counts=5, random_state=42,
+                    n_neighbors=20, n_pcs=10, resol=1, n_clusters=3, cluster_method='leiden'):
+        
+        '''
+        Performs cell typing.
+
+        params :    - n_neighbors (20) = number of neighbors to use for scanpy pp.neighbors
+                    - resol (float) = resolution of Leiden of Louvain clustering
+                    - n_clusters (int) = number of clusters to determine (in case we are using agglomerative clustering)
+                    - cluster_method (str) = type of clustering for cell typing. Can be 'leiden', 'louvain', or 'hierarchical'
+        '''
+        
+        # Calculate QC metrics
+        sc.pp.calculate_qc_metrics(self.cell_adata, percent_top=None, inplace=True)
+        
+        # Plot top 20 most expressed genes 
+        sc.pl.highest_expr_genes(self.cell_adata, n_top=20)
+        sns.jointplot(x="total_counts", y="n_genes_by_counts", data=self.cell_adata.obs, kind="hex")
+        plt.xlabel("# Spots per cell")
+        plt.ylabel("# Genes per cell")
+        plt.show()
+        
+        # Filtration 
+        sc.pp.filter_cells(self.cell_adata, min_genes=min_genes)
+        sc.pp.filter_genes(self.cell_adata, min_cells=min_cells)
+
+        sc.pp.filter_cells(self.cell_adata, min_counts=min_counts)
+        
+        # Normalization scaling
+        sc.pp.normalize_total(self.cell_adata)
+        sc.pp.log1p(self.cell_adata)
+
+        # Save raw data
+        self.cell_adata.raw = self.cell_adata
+        # Scale data to unit variance and zero mean
+        sc.pp.regress_out(self.cell_adata, ['total_counts'])
+        sc.pp.scale(self.cell_adata)
+
+        # Run PCA
+        sc.tl.pca(self.cell_adata, svd_solver='arpack')     
+        
+        # Computing the neighborhood graph
+        sc.pp.neighbors(self.cell_adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
+
+        # Run UMAP
+        sc.tl.umap(self.cell_adata)
+
+        if cluster_method == 'leiden':
+            print('Leiden clustering')
+            sc.tl.leiden(self.cell_adata, resolution=resol, random_state=random_state, key_added='cell_type')
+        elif cluster_method == 'louvain':
+            sc.tl.louvain(self.cell_adata, resolution=resol, random_state=random_state, key_added='cell_type')
+        else:
+            cluster = AgglomerativeClustering(n_clusters=n_clusters,
+                                              affinity='euclidean', linkage='ward')
+            self.cell_adata.obs['cell_type'] = cluster.fit_predict(self.cell_adata.obsm['X_pca']).astype(str)
+            
+            
+    def plot_cell_typing(self):
+        # Get colormap
+        cluster_pl = sns.color_palette('tab20',len(self.cell_adata.obs['cell_type'].unique()))
+        cluster_cmap = ListedColormap(cluster_pl)
+#         sns.palplot(cluster_pl)
+
+        # Plot UMAP with cluster labels w/ new color
+        sc.pl.umap(self.cell_adata, color='cell_type', legend_loc='on data',
+                   legend_fontsize=12, legend_fontoutline=2, frameon=False, 
+                   title='Clustering of cells', palette=cluster_pl)
+
+        sc.tl.rank_genes_groups(self.cell_adata, 'cell_type', method='t-test')
+
+        # Get markers for each cluster
+        sc.tl.rank_genes_groups(self.cell_adata, 'cell_type', method='t-test')
+        sc.tl.filter_rank_genes_groups(self.cell_adata, min_fold_change=0.01)
+
+        sc.pl.rank_genes_groups_heatmap(self.cell_adata, n_genes=5, min_logfoldchange=1, use_raw=False, swap_axes=True, 
+                                vmin=-3, vmax=3, cmap='bwr', show_gene_labels=True,
+                                dendrogram=False, figsize=(20, 10))
+
+        #plot cells in centers
+        col=self.cell_adata.obs['col'].tolist()
+        row=self.cell_adata.obs['row'].tolist()
+#             z=self.cell_adata.obs['z'].tolist()
+        cell_type=self.cell_adata.obs['cell_type'].tolist()
+        cell_type = [int(item) for item in cell_type]
+
+        plt.figure(figsize=(6,6))
+        plt.scatter(row, col, s=50,edgecolors='none', c=np.array(cluster_pl)[cell_type])
+        plt.title('cell type map')
+        plt.axis('equal')
+        plt.axis('off')
+        plt.tight_layout()
+        return(cluster_pl)
+    
+    def map_cell_type_to_spots(self, cellid):
+        
+        self.spots['cell_type']=-1
+        for ind,i in enumerate(self.cellid_unique):
+            self.spots.loc[self.spots[cellid]==i,'cell_type']=int(self.cell_adata.obs['cell_type'][ind])
+
+        
+        
+        
+        
+
 
 class StitchSpots():
     def __init__(self, path_res, config, res_name):
@@ -167,9 +322,6 @@ class StitchSpots():
         self.res_name = res_name
         self.config = config
        
-#     def gather_tiles(self):
-#         print('Gathering tiles')
-#         self.spots_gathered = gather_all_tiles(self.path_res, self.res_name)
 
     def stitch_tiles(self):
 #         if ifconfig:
@@ -193,175 +345,8 @@ class StitchSpots():
     def save_stitched_data(self, path_save):
         self.spots_all.to_csv(path_save, index=False)
 
-class CellTyping():
-    def __init__(self, spots_stitched_path, var, gene_list, method, use_z):
+  
         
-        '''
-        Perform cell typing on the stitched dataset.
-
-        params :    - spots_stitched_path (str) = path of the results
-                    - gene_list (list of ints) = genes used
-                    - method (str) = name of column of results
-        '''
-        
-        self.spots_stitched_path = spots_stitched_path
-        self.spots = pd.read_csv(spots_stitched_path)
-        self.var = var
-        self.gene_list = gene_list
-        self.method = method
-        self.use_z = use_z
-        self.markers = None
-        self.adata = None
-        self.palette = None
-        self.cell_shape = None
-    
-    def gene_profile(self, min_counts_cells=16, min_cells=10, plot=False,is_batch=False):
-        
-        '''
-        Generate gene profile and find cell centroids. Perform normalization.
-
-        params :    - min_count_cells (int) = minimal number of counts of a cell to be not discarded
-                    - min_cells (int) = filter genes and erase the ones that are expressed in less than min_cells cells. 
-                    - plot (bool) = whether to plot the gene profile before clustering        
-        '''
-        
-        print('Generating gene expression and finding cell centroids')
-        gene_expr, obs = generate_gene_profile(self.spots, self.gene_list, use_z=self.use_z,is_batch=is_batch, method=self.method)
-        print('Normalizing')
-        adata = normalize_all(gene_expr, obs, self.var, min_counts_cells=min_counts_cells, min_cells=min_cells, plot=plot)
-        self.adata = adata
-
-    def cell_typing(self,n_neighbors=20, n_pcs=10, resol=1, n_clusters=None, type_clustering='leiden'):
-
-        '''
-        Performs cell typing.
-
-        params :    - n_neighbors (20) = number of neighbors to use for scanpy pp.neighbors
-                    - resol (float) = resolution of Leiden of Louvain clustering
-                    - n_clusters (int) = number of clusters to determine (in case we are using agglomerative clustering)
-                    - type_clustering (str) = type of clustering for cell typing. Can be 'leiden', 'louvain', or 'hierarchical'
-        '''
-
-     
-
-        sc.tl.pca(self.adata)
-        sc.pp.neighbors(self.adata, n_neighbors=n_neighbors, n_pcs=n_pcs, random_state=42)
-        sc.tl.umap(self.adata, random_state=42)
-        if type_clustering == 'leiden':
-            print('Leiden clustering')
-            sc.tl.leiden(self.adata, resolution=resol, random_state=42, key_added='cell_type')
-        elif type_clustering == 'louvain':
-            sc.tl.louvain(self.adata, resolution=resol, random_state=42, key_added='cell_type')
-        else:
-            agg = AgglomerativeClustering(n_clusters=n_clusters, 
-                                         distance_threshold=None,
-                                         affinity='euclidean').fit(self.adata.X)
-            
-            self.adata.obs['cell_type'] = agg.labels_.astype('category')
-
-        
-        cluster_pl = sns.color_palette("tab20_r", 15)
-        self.palette = cluster_pl
-        sc.pl.umap(self.adata, color='cell_type', legend_loc='on data',
-                    legend_fontsize=12, legend_fontoutline=2, frameon=False, 
-                    title=f'clustering of cells : {type_clustering}', palette=cluster_pl, save=False)
-        sc.tl.rank_genes_groups(self.adata, 'cell_type', method='t-test')
-
-        # Pick markers 
-        markers = []
-        temp = pd.DataFrame(self.adata.uns['rank_genes_groups']['names']).head(5)
-        for i in range(temp.shape[1]):
-            curr_col = temp.iloc[:, i].to_list()
-            markers = markers + curr_col
-            print(i, curr_col)
-            
-        self.markers = markers
-       
-    def plot_cell_typing_heatmap(self, figsize=(20,10)):
-        
-        '''
-        Plot heatmap
-
-        params :    - figsize (tuple) = size of figure
-        '''
-        
-        sc.pl.rank_genes_groups_heatmap(self.adata, n_genes=5, min_logfoldchange=1, use_raw=False, swap_axes=True, 
-                                vmin=-3, vmax=3, cmap='bwr', show_gene_labels=True,
-                                dendrogram=False, figsize=figsize, save=False)
-
-        
-    def plot_cell_typing_spots(self, save_path=None, figsize=(16,10), s=10,is_batch=False, batch=None, plot_dapi=False,dapi=None):
-        
-        '''
-        Plot the spots colored by their cell typing
-
-        params :    - figsize (tuple) = size of the figure
-                    - s (int) = width of each point
-        '''
-        if is_batch:
-            target_adata=self.adata[self.adata.obs['position']==batch,:]
-            target_spots=self.spots.loc[self.spots['image_position']==batch,:]
-        else:
-            target_adata=self.adata
-            target_spots=self.spots
-            
-        cell_typing2spots(target_adata, target_spots, method='cellid')
-        spots_repr = target_spots.loc[target_spots['cell_type']!=-1,:]
-        plt.figure(figsize=figsize)
-        cmap=np.random.rand(int(max(spots_repr['cell_type'])+1),3)
-
-        if plot_dapi:
-            plt.imshow(dapi,origin='lower', cmap='binary_r')
-        plt.scatter(spots_repr['spot_merged_1'],spots_repr['spot_merged_2'],
-                   c=cmap[[int(x) for x in spots_repr['cell_type']]],s=s)
-#         sns.scatterplot(x='spot_merged_1', y='spot_merged_2', data=spots_repr, hue='cell_type', s=s, palette=self.palette[:len(np.unique(spots_repr['cell_type']))], legend=True)
-        plt.title('Cell Typing')
-        plt.legend(loc='upper right')
-        if save_path:
-            plt.savefig(save_path)
-        plt.show()
-
-    def create_cell_shape(self, kernel=np.ones((8,8)), num_iter=2, median_size=5, figsize=(16,10), s=5, num_iter_boundaries=5,is_batch=False, batch=None,plot_dapi=False,dapi=None):
-        
-        '''
-        Generate the boundaries and plot the spots inside
-
-        params :    - kernel (ndarray) : kernel to convolve with the image to perform dilation
-                    - num_iter (int) : number of iterations to perform dilation
-                    - median_size (int) : size of the kernel for Median blur
-                    - figsize (tuple) : size of resulting figure
-                    - s (int) = width of spots
-        '''
-        if is_batch:
-            target_adata=self.adata[self.adata.obs['position']==batch,:]
-            target_spots=self.spots.loc[self.spots['image_position']==batch,:]
-        else:
-            target_adata=self.adata
-            target_spots=self.spots
-        img = df_to_array(target_spots, method='cellid', spot_columns=['spot_merged_1', 'spot_merged_2'])
-        img_blured = create_mask(img, kernel=kernel, num_iter=num_iter, median_size=median_size)
-        img_blured_2 = cv2.dilate(img_blured, kernel=np.ones((5,5)), iterations=num_iter_boundaries)
-        boundaries = ((img_blured_2 - img_blured) != 0).astype(np.float32)
-        
-        spots_repr = target_spots.loc[target_spots['cell_type']!=-1,:]
-
-        ### Plot the result
-        plt.figure(figsize=figsize)
-        if plot_dapi:
-            plt.imshow(dapi,origin='lower', cmap='binary_r')
-        plt.imshow(boundaries, origin='lower', cmap='binary')
-        sns.scatterplot(x='spot_merged_1', y='spot_merged_2', data=spots_repr, hue='cell_type', s=s, palette=self.palette[:len(np.unique(spots_repr['cell_type']))], legend=True)
-        plt.title('Cell Typing with boundaries')
-        plt.legend(loc='upper right')
-        plt.show()        
- 
-    def save_cell_typing(self, path_save):
-        self.spots.to_csv(path_save+'cell_typing.csv', index=False)
-        self.adata.obs['index'] = self.adata.obs.index
-        self.adata.obs.to_csv(path_save+'cell_centroids.csv', index=False)
-        np.save(path_save+'gene_expr.npy', self.adata.X)
-
-
 
 class TissueMapping():
     def __init__(self, path_spots, path_all_spots):

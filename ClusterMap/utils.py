@@ -201,62 +201,25 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
     sort_lamda=-np.sort(-lamda) 
     list12=[x in sort_lamda[:self.number_cell] for x in lamda]
     list12not=[not x for x in list12]
+    self.cellcenter=all_coord[list12,:]
+    
     print(f'  Find cell number:{number_cell}')
-
+    
+    
     #assign the remaining spots
     cellid=np.zeros((self.num_spots_with_dapi,))-1
-    cellid[list12]=range(cellid[list12].shape[0])
+    cellid[list12]=range(self.number_cell) #range(cellid[list12].shape[0])
     for i_value in tqdm(rho_descending_order):
         if cellid[int(i_value)]==-1:
             if cellid[int(nneigh[int(i_value)])]==-1:
                 print('error')
-            cellid[int(i_value)]=cellid[int(nneigh[int(i_value)])]
+            cellid[int(i_value)]=cellid[int(nneigh[int(i_value)])]   
 
-    # Compute spatial distance
-#     spatial_dist = np.array(cdist(spatial, spatial, metric='euclidean'), dtype=np.float32)
-    
-    # Compute genetic distance
-#     distances = 1/np.array(cdist(ngc, ngc, metric=spearman_metric), dtype=np.float32)
-#     distances *= spatial_dist
-
-    # Compute densities rho
-#     densities = np.sum(np.maximum(distances - d_max, 0)*np.exp((-(distances/R)**2), dtype=np.float32), axis=1, dtype=np.float32)
-    
-#     index_highest_density = np.argmax(densities)
-    
-    # Compute distance delta (initialize gamma to delta for computation efficiency)
-#     gamma = np.array([np.min(distances[i,densities>densities[i]]) if i!=index_highest_density else 0 for i in range(len(densities))], dtype=np.float32)
-
-    # Update gamma
-#     gamma[index_highest_density] = distances[index_highest_density,np.argmax(gamma)]
-#     gamma *= densities
-
-    # Identify cell centers
-#     gamma_sorted = np.sort(gamma)
-#     gamma_sorted = gamma_sorted[::-1]
-#     spots_sorted_by_gamma = np.argsort(gamma)
-#     spots_sorted_by_gamma = spots_sorted_by_gamma[::-1]
-
-    # Find elbow
-#     sample_gamma_50 = gamma_sorted[::50]
-#     diffs = np.abs(np.diff(sample_gamma_50))
-#     ind_thresh = np.argwhere(diffs<100)[0][0]
-
-    # Find the cell centers
-#     cell_centers_index = spots_sorted_by_gamma[:50*ind_thresh]
-
-    # Assign the rest of the spots by descending density rho
-#     ind_densities_sorted = np.argsort(densities)
-#     ind_densities_sorted = ind_densities_sorted[::-1]
-#     ind_densities_sorted_remaining_points = ind_densities_sorted[np.setdiff1d(np.arange(len(densities)),cell_centers_index )]
-
-#     ind_spots_assigned = list(np.array(cell_centers_index, copy=True))
-#     cell_ids = np.zeros(len(densities))
-#     cell_ids[cell_centers_index] = np.arange(1,len(cell_centers_index)+1) 
-#     for ind_point in ind_densities_sorted_remaining_points:
-#         # Assign the cell label of the nearest spatial neighbor
-#         nearest_point = np.argmin(spatial_dist[ind_point, ind_spots_assigned])
-#         cell_ids[ind_point] = cell_ids[ind_spots_assigned[nearest_point]]
-#         ind_spots_assigned.append(ind_point)
 
     return(cellid)
+
+def reject_outliers(data,m=4):
+    test=abs(data-np.mean(data,axis=0)) < m* np.std(data,axis=0)
+    list=[i[0] and i[1] for i in test]
+    
+    return data[list,:]

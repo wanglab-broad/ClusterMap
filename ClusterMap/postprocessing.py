@@ -50,3 +50,8 @@ def erase_small_clusters(spots, N=10,method='clustermap'):
     spots_per_cluster = spots.groupby(method).size()
     dico_corres = dict([(leid, -1) if spots_per_cluster.loc[leid]<=N else (leid, leid) for leid in spots_per_cluster.index.to_numpy()])
     spots[method] = list(map(dico_corres.get, spots[method]))
+    
+    
+    
+    
+    
