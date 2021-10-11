@@ -203,11 +203,14 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
     list12not=[not x for x in list12]
     self.cellcenter=all_coord[list12,:]
     
-    print(f'  Find cell number:{number_cell}')
+    
     
     
     #assign the remaining spots
     cellid=np.zeros((self.num_spots_with_dapi,))-1
+    self.number_cell=sum(list12)
+    print(f'  Find cell number:{number_cell}')
+    
     cellid[list12]=range(self.number_cell) #range(cellid[list12].shape[0])
     for i_value in tqdm(rho_descending_order):
         if cellid[int(i_value)]==-1:

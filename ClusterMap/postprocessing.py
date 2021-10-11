@@ -17,7 +17,7 @@ def res_over_dapi_erosion(spots, dapi_binary, method='clustermap', minus1 = Fals
     returns :   None
     '''
 
-    dapi_binary_eroded = erosion(dapi_binary, ball(2))
+    dapi_binary_eroded = dapi_binary
     cell_list = np.unique(spots[method])[1:]
     if minus1:
         for cell in cell_list:
