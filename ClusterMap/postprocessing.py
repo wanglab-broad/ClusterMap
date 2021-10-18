@@ -3,7 +3,7 @@ import pandas as pd
 from skimage.morphology import ball,erosion
 from sklearn.neighbors import NearestNeighbors
 
-def res_over_dapi_erosion(spots, dapi_binary, method='clustermap', minus1 = False):
+def res_over_dapi_erosion(num_dims, spots, dapi_binary, method='clustermap', minus1 = False):
     
     '''
     Erase cells that do not overlap with DAPI signals
@@ -21,14 +21,22 @@ def res_over_dapi_erosion(spots, dapi_binary, method='clustermap', minus1 = Fals
     cell_list = np.unique(spots[method])[1:]
     if minus1:
         for cell in cell_list:
-            spots_cell = spots.loc[spots[method]==cell, ['spot_location_2', 'spot_location_1', 'spot_location_3']].to_numpy()
-            number_overlap = np.sum(dapi_binary_eroded[spots_cell[:,0] - 1,spots_cell[:,1] - 1, spots_cell[:,2] - 1])
+            if num_dims==3:
+                spots_cell = spots.loc[spots[method]==cell, ['spot_location_2', 'spot_location_1', 'spot_location_3']].to_numpy()
+                number_overlap = np.sum(dapi_binary_eroded[spots_cell[:,0] - 1,spots_cell[:,1] - 1, spots_cell[:,2] - 1])
+            else:
+                spots_cell = spots.loc[spots[method]==cell, ['spot_location_2', 'spot_location_1']].to_numpy()
+                number_overlap = np.sum(dapi_binary_eroded[spots_cell[:,0] - 1,spots_cell[:,1] - 1])
             if number_overlap ==0:
                 spots.loc[spots[method]==cell, method] = -1      
     else:
         for cell in cell_list:
-            spots_cell = spots.loc[spots[method]==cell, ['spot_location_2', 'spot_location_1', 'spot_location_3']].to_numpy()
-            number_overlap = np.sum(dapi_binary_eroded[spots_cell[:,0]-1,spots_cell[:,1]-1, spots_cell[:,2] - 1])
+            if num_dims==3:
+                spots_cell = spots.loc[spots[method]==cell, ['spot_location_2', 'spot_location_1', 'spot_location_3']].to_numpy()
+                number_overlap = np.sum(dapi_binary_eroded[spots_cell[:,0]-1,spots_cell[:,1]-1, spots_cell[:,2] - 1])
+            else:
+                spots_cell = spots.loc[spots[method]==cell, ['spot_location_2', 'spot_location_1']].to_numpy()
+                number_overlap = np.sum(dapi_binary_eroded[spots_cell[:,0]-1,spots_cell[:,1]-1])                
             if number_overlap ==0:
                 spots.loc[spots[method]==cell, method] = -1   
 

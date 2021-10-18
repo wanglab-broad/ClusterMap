@@ -18,23 +18,26 @@ def NGC(self,spots):
     
     returns :   NGC matrix. Each row is a NGC vector
     '''
-    radius=max(self.xy_radius,self.z_radius)
+    
     if self.num_dims == 3:
+        radius=max(self.xy_radius,self.z_radius)
         X_data = np.array(spots[['spot_location_1', 'spot_location_2', 'spot_location_3']])
     else:
+        radius=self.xy_radius
         X_data = np.array(spots[['spot_location_1', 'spot_location_2']])
     knn = NearestNeighbors(radius=radius)
     knn.fit(X_data)
     spot_number = spots.shape[0]
     res_dis,res_neighbors = knn.radius_neighbors(X_data, return_distance=True)
-    ### remove nearest spots outside z_radius
-    if radius==self.xy_radius:
-        smaller_radius=self.z_radius
-    else:
-        smaller_radius=self.xy_radius
-    for indi,i in tqdm(enumerate(res_neighbors)):
-        res_neighbors[indi]=i[X_data[i,2]-X_data[indi,2]<=smaller_radius]
-        res_dis[indi]=res_dis[indi][X_data[i,2]-X_data[indi,2]<=smaller_radius]
+    if self.num_dims == 3:
+        ### remove nearest spots outside z_radius
+        if radius==self.xy_radius:
+            smaller_radius=self.z_radius
+        else:
+            smaller_radius=self.xy_radius
+        for indi,i in tqdm(enumerate(res_neighbors)):
+            res_neighbors[indi]=i[X_data[i,2]-X_data[indi,2]<=smaller_radius]
+            res_dis[indi]=res_dis[indi][X_data[i,2]-X_data[indi,2]<=smaller_radius]
     
     res_ngc = np.zeros((spot_number, len(self.gene_list)))
     for i in range(spot_number):
@@ -116,13 +119,15 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
     knn = NearestNeighbors(radius=radius)
     knn.fit(all_coord)
     spatial_dist, spatial_nn_array = knn.radius_neighbors(all_coord,sort_results=True) 
-    if radius==self.xy_radius:
-        smaller_radius=self.z_radius
-    else:
-        smaller_radius=self.xy_radius
-    for indi,i in tqdm(enumerate(spatial_nn_array)):
-        spatial_nn_array[indi]=i[all_coord[i,2]-all_coord[indi,2]<=smaller_radius]
-        spatial_dist[indi]=spatial_dist[indi][all_coord[i,2]-all_coord[indi,2]<=smaller_radius]
+
+    if self.num_dims==3:
+        if radius==self.xy_radius:
+            smaller_radius=self.z_radius
+        else:
+            smaller_radius=self.xy_radius
+        for indi,i in tqdm(enumerate(spatial_nn_array)):
+            spatial_nn_array[indi]=i[all_coord[i,2]-all_coord[indi,2]<=smaller_radius]
+            spatial_dist[indi]=spatial_dist[indi][all_coord[i,2]-all_coord[indi,2]<=smaller_radius]
     
     # Compute genetic distance with nearest spots within radius
     print('  Compute genetic distance')
@@ -182,7 +187,7 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
         else:
             lamda=np.log(rho)*delta
         sort_lamda=-np.sort(-lamda)
-        bin_index=range(0,self.num_spots_with_dapi,50)
+        bin_index=range(0,self.num_spots_with_dapi,30)
         start_value=sort_lamda[bin_index][:-1]
         middle_value=sort_lamda[bin_index][1:]
         change_value=start_value-middle_value
@@ -190,7 +195,7 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
 
         for indi,i in enumerate((change_value/(change_value[1]-change_value[-1]))):
             if i<cell_num_threshold  and  curve[indi+1]<cell_num_threshold:
-                number_cell=number_cell+(indi)*50
+                number_cell=number_cell+(indi)*30
                 break
     number_cell=number_cell/2            
     if number_cell==0:
@@ -218,11 +223,88 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
                 print('error')
             cellid[int(i_value)]=cellid[int(nneigh[int(i_value)])]   
 
-
     return(cellid)
+
 
 def reject_outliers(data,m=4):
     test=abs(data-np.mean(data,axis=0)) < m* np.std(data,axis=0)
     list=[i[0] and i[1] for i in test]
     
     return data[list,:]
+
+
+def get_img(img, spt, window_size, margin):
+    sh = list(img.shape)
+    sh[0], sh[1] = sh[0] + margin * 2, sh[1] + margin * 2
+    img_ = np.zeros(shape=sh)-1
+    stride = window_size
+    step = window_size + 2 * margin
+
+    nrows, ncols = img.shape[0] // window_size, img.shape[1] // window_size
+    ind=0
+    for i in range(nrows+1):
+        for j in range(ncols+1):
+            h_start = j*stride
+            v_start = i*stride
+            v_end = v_start+step
+            h_end=h_start+step
+            if i==nrows:
+                v_end=img_.shape[0]
+            if j==ncols:
+                h_end=img_.shape[1]
+            if i!=0:
+                v_start=v_start+int(margin/2)
+            if j!=0:
+                h_start=h_start+int(margin/2)
+            img_[v_start:v_end, h_start:h_end]=ind
+            ind=ind+1
+            
+    return img_
+
+
+def split(img, label_img, spt, window_size, margin):
+
+    sh = list(img.shape)
+    sh[0], sh[1] = sh[0] + margin * 2, sh[1] + margin * 2
+    img_ = np.zeros(shape=sh)
+    img_[margin:-margin, margin:-margin] = img
+
+    spots_=spt.copy()
+    spots_['spot_location_1']=spt['spot_location_1']+margin
+    spots_['spot_location_2']=spt['spot_location_2']+margin
+    
+    stride = window_size
+    step = window_size + 2 * margin
+
+    splitted_data = {'row':[],'col':[],'img':[],'spots':[],'label_img':[]}
+    nrows, ncols = img.shape[0] // window_size, img.shape[1] // window_size
+
+    for i in range(nrows):
+        for j in range(ncols):
+            splitted_data['row'].append(i)
+            splitted_data['col'].append(j)
+            h_start = j*stride
+            v_start = i*stride
+            v_end = v_start+step
+            h_end=h_start+step
+            if i==nrows:
+                v_end=img_.shape[0]
+            if j==ncols:
+                h_end=img_.shape[1]
+            
+            cropped = img_[v_start:v_end, h_start:h_end]
+            cropped_labelimg = label_img[v_start:v_end, h_start:h_end]
+            splitted_data['img'].append(cropped)
+            splitted_data['label_img'].append(cropped_labelimg)
+            test1=[i[1] and i[0] for i in zip(np.logical_and(spots_['spot_location_1']<h_end, spots_['spot_location_1']>=h_start),
+                                              np.logical_and(spots_['spot_location_2']<v_end, spots_['spot_location_2']>=v_start))]
+
+            spots_splitted=spots_.loc[test1,:].copy()
+            spots_splitted=spots_splitted.reset_index()
+            spots_splitted['spot_location_1']=spots_splitted['spot_location_1']-h_start
+            spots_splitted['spot_location_2']=spots_splitted['spot_location_2']-v_start
+            splitted_data['spots'].append(spots_splitted)
+    splitted_data=pd.DataFrame(splitted_data)
+    print(f'Split finished: {splitted_data.shape[0]} tiles')
+    return splitted_data
+

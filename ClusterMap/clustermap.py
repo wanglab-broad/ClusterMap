@@ -43,9 +43,10 @@ class ClusterMap():
         self.num_dims = num_dims
         self.xy_radius = xy_radius
         self.z_radius = z_radius
+        self.cellcenter = None
     
-    def preprocess(self,pct_filter=0.1):
-        preprocessing_data(self.spots, self.dapi_binary,self.xy_radius,pct_filter)
+    def preprocess(self,dapi_grid_interval=5, pct_filter=0.1):
+        preprocessing_data(self.spots, dapi_grid_interval, self.dapi_binary,self.xy_radius,pct_filter)
 
     def segmentation(self,cell_num_threshold=0.015, dapi_grid_interval=5, add_dapi=True,use_genedis=True):
         
@@ -79,11 +80,15 @@ class ClusterMap():
 
         
         # Let's keep only the spots' labels
-        self.spots.loc[spots_denoised.loc[:, 'index'], 'clustermap'] = cell_ids[:len(ngc)]
+        if 'level_0' in spots_denoised:
+            self.spots.loc[spots_denoised.loc[:, 'level_0'], 'clustermap'] = cell_ids[:len(ngc)]
+        else:
+            self.spots.loc[spots_denoised.loc[:, 'index'], 'clustermap'] = cell_ids[:len(ngc)]
+
         
         print('Postprocessing')
         erase_small_clusters(self.spots,self.min_spot_per_cell)
-        res_over_dapi_erosion(self.spots, self.dapi_binary)
+        res_over_dapi_erosion(self.num_dims, self.spots, self.dapi_binary)
         
         # Keep all spots id for plotting
         is_remain=np.in1d(cell_ids, self.spots['clustermap'].unique())
@@ -157,7 +162,10 @@ class ClusterMap():
             cmap=np.random.rand(int(max(cell_ids)+1),3)
         
         if plot_dapi:
-            plt.imshow(np.sum(self.dapi_binary,axis=2),origin='lower', cmap='binary_r')
+            if self.num_dims==3:
+                plt.imshow(np.sum(self.dapi_binary,axis=2),origin='lower', cmap='binary_r')
+            elif self.num_dims==2:
+                plt.imshow(self.dapi_binary,origin='lower', cmap='binary_r')
             plt.scatter(spots_repr[:,1],spots_repr[:,0],
             c=cmap[[int(x) for x in cell_ids]],s=s)
         else:
@@ -170,6 +178,38 @@ class ClusterMap():
         if show:
             plt.show()
         
+    def plot_segmentation_3D(self,figsize=(10,10),elev=45,azim=-45, method='clustermap',s=10,cmap=None):
+        
+        cell_ids = self.spots[method]
+        cells_unique = np.unique(cell_ids)
+        spots_repr = np.array(self.spots[['spot_location_2', 'spot_location_1','spot_location_3']])[cell_ids>=0]
+        cell_ids=cell_ids[cell_ids>=0]
+        
+        if cmap is None:
+            cmap=np.random.rand(int(max(cell_ids)+1),3)
+        
+        fig = plt.figure(figsize=figsize)
+        ax = plt.axes(projection='3d')
+        ax.view_init(elev=elev, azim=azim)
+        ax.scatter3D(spots_repr[:,1], 
+                     spots_repr[:,0],  
+                     spots_repr[:,2], 
+                     c=cmap[[int(x) for x in cell_ids]],
+                     s=s)
+
+        X=spots_repr[:,1]
+        Y=spots_repr[:,0]
+        Z=spots_repr[:,2]
+        #Create cubic bounding box to simulate equal aspect ratio
+        max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max()
+        Xb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][0].flatten() + 0.5*(X.max()+X.min())
+        Yb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][1].flatten() + 0.5*(Y.max()+Y.min())
+        Zb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][2].flatten() + 0.5*(Z.max()+Z.min())
+        # Comment or uncomment following both lines to test the fake bounding box:
+        for xb, yb, zb in zip(Xb, Yb, Zb):
+           ax.plot([xb], [yb], [zb], 'w')
+        plt.title(f'3D cell map in {method}')
+            
     def calculate_metrics(self, gt_column):
 
         '''
@@ -187,6 +227,8 @@ class ClusterMap():
     
     def create_cell_adata(self,cellid, geneid, gene_list, genes, num_dims):
         
+#         
+            
         ### find unique cell id
         cellid_unique=self.spots[cellid].unique()
         cellid_unique=cellid_unique[cellid_unique>=0]
@@ -196,11 +238,25 @@ class ClusterMap():
         gene_expr_vector = np.zeros((len(cellid_unique), len(gene_list)))
         obs=np.zeros((len(cellid_unique),num_dims))
         gene_expr=self.spots.groupby([cellid, geneid]).size()
+        
         for ind,i in enumerate(cellid_unique):
             gene_expr_vector[ind, gene_expr[i].index-np.min(gene_list)] = gene_expr[i].to_numpy()
-            obs[ind,:]=self.cellcenter[int(i),:]
+            if self.cellcenter is None:
+                if num_dims==3:
+                    obs[ind,:]=self.spots.loc[self.spots[cellid]==i,['spot_location_1','spot_location_2','spot_location_3']].mean(axis=0)
+                else:
+                    obs[ind,:]=self.spots.loc[self.spots[cellid]==i,['spot_location_1','spot_location_2']].mean(axis=0)
+            else:
+                if num_dims==3:
+                    obs[ind,:]=self.cellcenter[int(i),0:3]
+                else:
+                    obs[ind,:]=self.cellcenter[int(i),0:2]
             
-        obs=pd.DataFrame(data=obs,columns=['col','row','z'])
+#             obs[ind,:]=self.cellcenter[int(i),:]
+        if num_dims==3:
+            obs=pd.DataFrame(data=obs,columns=['col','row','z'])
+        else:
+            obs=pd.DataFrame(data=obs,columns=['col','row'])
         var = pd.DataFrame(index=genes[0])
         self.cell_adata = AnnData(X=gene_expr_vector, var=var, obs=obs)
         
@@ -299,10 +355,16 @@ class ClusterMap():
         return(cluster_pl)
     
     def map_cell_type_to_spots(self, cellid):
-        
         self.spots['cell_type']=-1
         for ind,i in enumerate(self.cellid_unique):
-            self.spots.loc[self.spots[cellid]==i,'cell_type']=int(self.cell_adata.obs['cell_type'][ind])
+            try:
+                test=list(self.cell_adata.obs.index).index(str(ind))
+                self.spots.loc[self.spots[cellid]==i,'cell_type']=int(self.cell_adata.obs.loc[str(ind),'cell_type'])
+            except ValueError:
+                test=0
+#         self.spots['cell_type']=-1
+#         for ind,i in enumerate(self.cellid_unique):
+#             self.spots.loc[self.spots[cellid]==i,'cell_type']=int(self.cell_adata.obs['cell_type'][ind])
 
         
         

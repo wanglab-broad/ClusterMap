@@ -64,7 +64,7 @@ def binarize_dapi(dapi,fast_preprocess,gauss_blur,sigma):
             dapi_stacked = np.amax(dapi_binary, axis=2)
     return(dapi_binary, dapi_stacked)
 
-def preprocessing_data(spots, dapi_binary,xy_radius,pct_filter):
+def preprocessing_data(spots, dapi_grid_interval, dapi_binary,xy_radius,pct_filter):
     '''
     Apply preprocessing on spots, thanks to dapi. 
     We remove the 10% spots with lowest density
@@ -78,7 +78,7 @@ def preprocessing_data(spots, dapi_binary,xy_radius,pct_filter):
     sampling_mat = np.zeros(dapi_binary.shape)
     if len(dapi_binary.shape)==3:
         for ii,jj,kk in product(range(sampling_mat.shape[0]), range(sampling_mat.shape[1]),range(sampling_mat.shape[2])):
-            if ii%5==1 and jj%5==1 and kk%5==1:
+            if ii%dapi_grid_interval==1 and jj%dapi_grid_interval==1 and kk%dapi_grid_interval==1:
                 sampling_mat[ii,jj,kk] = 1
         dapi_sampled = dapi_binary*sampling_mat
         dapi_coord = np.argwhere(dapi_sampled > 0)
@@ -119,7 +119,7 @@ def preprocessing_data(spots, dapi_binary,xy_radius,pct_filter):
         spots.loc[inDAPI_points,'is_noise']=0
     else:
         for ii,jj in product(range(sampling_mat.shape[0]), range(sampling_mat.shape[1])):
-            if ii%5==1 and jj%5==1:
+            if ii%dapi_grid_interval==1 and jj%dapi_grid_interval==1:
                 sampling_mat[ii,jj] = 1
     
         dapi_sampled = dapi_binary*sampling_mat
