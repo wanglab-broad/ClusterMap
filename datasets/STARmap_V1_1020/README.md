@@ -1,1 +1,0 @@
-Please download STARmap_V1_1020 data at: https://drive.google.com/drive/folders/1JwQpDSEkHmd4ERjwqArIzHN2ypQQXIt2?usp=sharing.
