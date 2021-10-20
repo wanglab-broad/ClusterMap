@@ -166,12 +166,10 @@ Parameters:
 
 #### Time estimation
 
-Time is dependent on the number of input spots, and potentially the area the DAPI foreground.
+Time is dependent on the number of input spots, and potentially the area the DAPI foreground. Currently testing on several samples: 
 
-Currently testing on several samples: 
-
-- 1mins 42s for 49,712 input spots (all 273,242 spots) without GPU
-- 34mins 53s for 471,295 input spots without GPU
+- 1mins 42s for 49,712 input spots (all 273,242 spots) without GPU, single thread
+- 34mins 53s for 471,295 input spots without GPU, single thread
 
 ***
 
@@ -183,9 +181,7 @@ Currently testing on several samples:
 
 If you find ClusterMap useful for your work, please cite our paper: 
 
-```
-He, Y., Tang, X., Huang, J. et al. ClusterMap for multi-scale clustering analysis of spatial gene expression. Nat Commun 12, 5909 (2021). https://doi.org/10.1038/s41467-021-26044-x
-```
+> He, Y., Tang, X., Huang, J. et al. ClusterMap for multi-scale clustering analysis of spatial gene expression. Nat Commun 12, 5909 (2021). https://doi.org/10.1038/s41467-021-26044-x
 
 #### Contact
 
