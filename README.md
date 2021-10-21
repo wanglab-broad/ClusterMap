@@ -61,7 +61,7 @@ model = ClusterMap(spots=spots, dapi=dapi, gene_list=gene_list, num_dims=num_dim
                    xy_radius=xy_radius,z_radius=0,fast_preprocess=True)
 ```
 
-Parameters:
+​	*Parameters:*
 
 - [x] Preprocess data
 
@@ -69,7 +69,7 @@ Parameters:
 model_tile.preprocess(dapi_grid_interval=3,pct_filter=pct_filter)
 ```
 
-Paramters
+​	*Paramters*
 
 - [x] Cell segmentation
 
@@ -77,9 +77,20 @@ Paramters
 model_tile.segmentation(cell_num_threshold=0.1,dapi_grid_interval=3,add_dapi=True,use_genedis=True)
 ```
 
-Paramters
+​	*Paramters*
 
-- [ ] Find cell types
+- [x] create adata, saved in model.cell_adata (Cell typing processing is mostly based on [Scanpy](https://scanpy.readthedocs.io/en/stable/index.html) and [anndata](https://anndata.readthedocs.io/en/latest/index.html))
+
+```
+model.create_cell_adata(cellid,geneid,gene_list,genes,num_dims)
+```
+
+- [x] Find cell types
+
+```
+model.cell_typing(cluster_method='leiden',resol=1.5)
+```
+
 - [ ] Identify tissue layers
 
 **Other functions**
@@ -105,6 +116,13 @@ model.plot_segmentation_3D(figsize=(8,8),elev=45, azim=-65)
 ```
 
 - [ ] Construct and plot convex hull of cells
+- [ ] Plot cell typing results
+
+```
+cluster_pl=model.plot_cell_typing(umap=True,heatmap=False, celltypemap=True)
+```
+
+
 
 2. **Save functions**
 
@@ -113,30 +131,37 @@ model.plot_segmentation_3D(figsize=(8,8),elev=45, azim=-65)
 
 3. **Large input data**
 
-If input data is large (>100,000 spots), processing over whole data at one time may be time-consuming, we implemented trimming and stitching functions to process over each trimmed tile to save computational resources. Note that there won't be any cracks in results as we consider a 10% overlap when trimming and stitching.
+   If input data is large (>100,000 spots), processing over whole data at one time may be time-consuming, we implemented trimming and stitching functions to process over each trimmed tile to save computational resources. Note that there won't be any cracks in results as we consider a 10% overlap when trimming and stitching.
 
-**Reletive functions:**  
+   **Relative functions:**  
 
-- [x] Trim
+   - [x] Trim
 
-```
-img = dapi
-window_size=2000
-label_img = get_img(img, spots, window_size=window_size, margin=math.ceil(window_size*0.1))
-out = split(img, label_img, spots, window_size=window_size, margin=math.ceil(window_size*0.1))
-```
+   ```
+   img = dapi
+   window_size=2000
+   label_img = get_img(img, spots, window_size=window_size, margin=math.ceil(window_size*0.1))
+   out = split(img, label_img, spots, window_size=window_size, margin=math.ceil(window_size*0.1))
+   ```
 
-Parameters:
+   *Parameters:*
 
+   - [x] Stitch after cell segmentation over the tile
 
+   ```
+   cell_info=model.stitch(model_tile,out,tile_num, cell_info)
+   ```
 
-- [x] Stitch after cell segmentation over the tile
+   *Parameters:*
 
-```
-cell_info=model.stitch(model_tile,out,tile_num, cell_info)
-```
+4. **Cell typing relative functions**
 
-Parameters:
+   - [x] Merge cell types
+
+   ```
+   merge_list = [[0,2,3,8,9],[1,4,5,6,10]]
+   model.merge_multiple_clusters(merge_list)
+   ```
 
 
 
