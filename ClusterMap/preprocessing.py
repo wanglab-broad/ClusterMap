@@ -86,15 +86,15 @@ def preprocessing_data(spots, dapi_grid_interval, dapi_binary,xy_radius,pct_filt
         all_points = np.concatenate((np.array(spots.loc[:, ['spot_location_2', 'spot_location_1','spot_location_3']]), dapi_coord), axis=0)
         
         #compute neighbors within radius for local density
-        knn = NearestNeighbors(radius=xy_radius)
+        knn = NearestNeighbors(radius=xy_radius*2)
         knn.fit(all_points)
         spots_array = np.array(spots.loc[:, ['spot_location_2', 'spot_location_1','spot_location_3']])
         neigh_dist, neigh_array = knn.radius_neighbors(spots_array) 
         
         #global low-density removal
-        dis_neighbors=[ii.sum(0) for ii in neigh_dist]
+        dis_neighbors=[(ii*ii).sum(0) for ii in neigh_dist]
         thresh = np.percentile(dis_neighbors, pct_filter*100)
-        noisy_points = np.argwhere(dis_neighbors<=thresh)[:,0]
+        noisy_points = np.argwhere(dis_neighbors<thresh)[:,0]
         spots['is_noise'] = 0
         spots.loc[noisy_points, 'is_noise'] = -1
         
@@ -138,7 +138,7 @@ def preprocessing_data(spots, dapi_grid_interval, dapi_binary,xy_radius,pct_filt
         res_num_neighbors = [ii.shape[0] for ii in neigh_array]
 
         thresh = np.percentile(dis_neighbors, pct_filter*100)
-        noisy_points = np.argwhere(dis_neighbors<=thresh)[:,0]
+        noisy_points = np.argwhere(dis_neighbors<thresh)[:,0]
         spots['is_noise'] = 0
         spots.loc[noisy_points, 'is_noise'] = -1
         

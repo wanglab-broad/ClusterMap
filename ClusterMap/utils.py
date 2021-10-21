@@ -63,14 +63,14 @@ def add_dapi_points(dapi_binary,dapi_grid_interval, spots_denoised, ngc, num_dim
     sampling_mat = np.zeros(dapi_binary.shape)
     if num_dims==3:
         for ii,jj,kk in product(range(sampling_mat.shape[0]), range(sampling_mat.shape[1]),range(sampling_mat.shape[2])):
-            if ii%dapi_grid_interval==2 and jj%dapi_grid_interval==2 and kk%dapi_grid_interval==2:
+            if ii%dapi_grid_interval==0 and jj%dapi_grid_interval==0 and kk%dapi_grid_interval==0:
                 sampling_mat[ii,jj,kk] = 1
         dapi_sampled = dapi_binary*sampling_mat
         dapi_coord = np.argwhere(dapi_sampled > 0)
         spots_points = spots_denoised.loc[:, ['spot_location_2', 'spot_location_1', 'spot_location_3']]
     else:
         for ii,jj in product(range(sampling_mat.shape[0]), range(sampling_mat.shape[1])):
-            if ii%dapi_grid_interval==2 and jj%dapi_grid_interval==2:
+            if ii%dapi_grid_interval==0 and jj%dapi_grid_interval==0:
                 sampling_mat[ii,jj] = 1
         dapi_sampled = dapi_binary*sampling_mat
         dapi_coord = np.argwhere(dapi_sampled > 0)
@@ -187,15 +187,15 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
         else:
             lamda=np.log(rho)*delta
         sort_lamda=-np.sort(-lamda)
-        bin_index=range(0,self.num_spots_with_dapi,30)
+        bin_index=range(0,self.num_spots_with_dapi,10)
         start_value=sort_lamda[bin_index][:-1]
         middle_value=sort_lamda[bin_index][1:]
         change_value=start_value-middle_value
         curve=(change_value/(change_value[1]-change_value[-1]))
 
-        for indi,i in enumerate((change_value/(change_value[1]-change_value[-1]))):
+        for indi,i in enumerate(curve):
             if i<cell_num_threshold  and  curve[indi+1]<cell_num_threshold:
-                number_cell=number_cell+(indi)*30
+                number_cell=number_cell+(indi)*10
                 break
     number_cell=number_cell/2            
     if number_cell==0:
@@ -207,9 +207,6 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
     list12=[x in sort_lamda[:self.number_cell] for x in lamda]
     list12not=[not x for x in list12]
     self.cellcenter=all_coord[list12,:]
-    
-    
-    
     
     #assign the remaining spots
     cellid=np.zeros((self.num_spots_with_dapi,))-1
@@ -279,8 +276,8 @@ def split(img, label_img, spt, window_size, margin):
     splitted_data = {'row':[],'col':[],'img':[],'spots':[],'label_img':[]}
     nrows, ncols = img.shape[0] // window_size, img.shape[1] // window_size
 
-    for i in range(nrows):
-        for j in range(ncols):
+    for i in range(nrows+1):
+        for j in range(ncols+1):
             splitted_data['row'].append(i)
             splitted_data['col'].append(j)
             h_start = j*stride
@@ -291,6 +288,10 @@ def split(img, label_img, spt, window_size, margin):
                 v_end=img_.shape[0]
             if j==ncols:
                 h_end=img_.shape[1]
+            if i!=0:
+                v_start=v_start+int(margin/2)
+            if j!=0:
+                h_start=h_start+int(margin/2)
             
             cropped = img_[v_start:v_end, h_start:h_end]
             cropped_labelimg = label_img[v_start:v_end, h_start:h_end]
