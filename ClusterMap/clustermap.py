@@ -11,13 +11,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from skimage.morphology import convex_hull_image
 from sklearn.cluster import AgglomerativeClustering
-from scipy.spatial import Delaunay
+from scipy.spatial import Delaunay, ConvexHull
 from sklearn.metrics import adjusted_rand_score
 from skimage.color import label2rgb
 from tqdm import tqdm
 from sklearn.neighbors import LocalOutlierFactor
 from matplotlib.colors import ListedColormap
 from anndata import AnnData
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
 
 class ClusterMap():
 
@@ -45,8 +47,8 @@ class ClusterMap():
         self.z_radius = z_radius
         self.cellcenter = None
     
-    def preprocess(self,dapi_grid_interval=5, pct_filter=0.1):
-        preprocessing_data(self.spots, dapi_grid_interval, self.dapi_binary,self.xy_radius,pct_filter)
+    def preprocess(self,dapi_grid_interval=5, LOF=False, contamination=0.1, pct_filter=0.1):
+        preprocessing_data(self.spots, dapi_grid_interval, self.dapi_binary, LOF,contamination, self.xy_radius,pct_filter)
 
     def segmentation(self,cell_num_threshold=0.01, dapi_grid_interval=5, add_dapi=True,use_genedis=True):
         
@@ -100,7 +102,10 @@ class ClusterMap():
         self.cellcenter_unique=self.cellcenter[self.cellid_unique.astype('int'),:]
         
         
-    def create_convex_hulls(self,plot_with_dapi=True, bg_color=[1,1,1], figsize=(10,10)):
+    def create_convex_hulls(self, plot_with_dapi=True, figscale = 50,
+                            bg_color=[1,1,1], good_cells=None, width=5,
+                            height=5,alpha=1,vmin=None,vmax=None,k=0.9,
+                            rescale_colors=False, figsize=(10,10)):
         
         '''
         Plot the results of segmentation with convex hull instead of customized cell shapes
@@ -118,21 +123,64 @@ class ClusterMap():
             
         cells_unique = cells_unique[cells_unique>=0]
         img_res = np.zeros(self.dapi_stacked.shape)
-        for cell in cells_unique:
-            spots_portion = np.array(spots_repr[cell_ids==cell,:2])
-            spots_portion=reject_outliers(spots_portion)
-#             clf = LocalOutlierFactor(n_neighbors=3)
-#             spots_portion = spots_portion[clf.fit_predict(spots_portion)==1,:]
-            cell_mask = np.zeros(img_res.shape)
-            cell_mask[spots_portion[:,0]-1, spots_portion[:,1]-1] = 1
-            cell_ch = convex_hull_image(cell_mask)
-            img_res[cell_ch==1] = cell
-        self.ch_shape = img_res
-        colors=list(np.random.rand(self.number_cell,3))
-        img_res_rgb=label2rgb(img_res,colors=colors,bg_label=0, bg_color=bg_color)
-        plt.figure(figsize=figsize)
-        plt.imshow(img_res_rgb, origin='lower')
-        plt.title('Cell Shape with Convex Hull')        
+        spots_repr[:, [0,1]] = spots_repr[:, [1,0]]
+        Nlabels = cells_unique.shape[0]
+        hulls = []
+        coords = []
+        num_cells = 0
+        print('Creat cell convex hull')
+        for i in cells_unique:   
+            curr_coords = spots_repr[cell_ids==i,0:2]
+            curr_coords=reject_outliers(curr_coords)
+            if curr_coords.shape[0] < 100000 and curr_coords.shape[0] > 50:
+                num_cells += 1
+                hulls.append(ConvexHull(curr_coords))
+                coords.append(curr_coords)
+        print("Used %d / %d" % (num_cells, Nlabels))        
+        
+        if self.num_dims==2:
+            dapi_2D=self.dapi
+        else:
+            dapi_2D=np.sum(self.dapi,axis=2)
+            
+        
+        plt.figure(figsize=(figscale*width/float(height),figscale))
+        polys = [hull_to_polygon(h,k) for h in hulls]
+        if good_cells is not None:
+            polys = [p for i,p in enumerate(polys) if i in good_cells]
+        p = PatchCollection(polys,alpha=alpha, cmap='tab20',edgecolor='k', linewidth=0.5)
+        colors=cell_ids
+        if vmin or vmax is not None:
+            p.set_array(colors)
+            p.set_clim(vmin=vmin,vmax=vmax)
+        else:
+            if rescale_colors:
+                p.set_array(colors+1)
+                p.set_clim(vmin=0, vmax=max(colors+1))
+            else:
+                
+                p.set_array(colors)
+                p.set_clim(vmin=0, vmax=max(colors))        
+        # dapi_2D = (dapi_2D > 0).astype(np.int)
+        plt.imshow(dapi_2D,cmap=plt.cm.gray_r,alpha=0.35,origin='lower')
+        plt.gca().add_collection(p)
+
+
+#         for cell in cells_unique:
+#             spots_portion = np.array(spots_repr[cell_ids==cell,:2])
+#             spots_portion=reject_outliers(spots_portion)
+# #             clf = LocalOutlierFactor(n_neighbors=3)
+# #             spots_portion = spots_portion[clf.fit_predict(spots_portion)==1,:]
+#             cell_mask = np.zeros(img_res.shape)
+#             cell_mask[spots_portion[:,0]-1, spots_portion[:,1]-1] = 1
+#             cell_ch = convex_hull_image(cell_mask)
+#             img_res[cell_ch==1] = cell
+#         self.ch_shape = img_res
+#         colors=list(np.random.rand(self.number_cell,3))
+#         img_res_rgb=label2rgb(img_res,colors=colors,bg_label=0, bg_color=bg_color)
+#         plt.figure(figsize=figsize)
+#         plt.imshow(img_res_rgb, origin='lower')
+#         plt.title('Cell Shape with Convex Hull')        
     
     def plot_gene(self,marker_genes, genes_list, figsize=(5,5),c='r',s=1):
         for i in range(len(marker_genes)):
@@ -416,8 +464,7 @@ class ClusterMap():
         self.cell_adata.obs['cell_type']=-1
         for sub_adata in list_adata:
             sub_adata.obs['cell_type']=sub_adata.obs['cell_type'].astype('int')
-            self.cell_adata.obs.loc[sub_adata.obs.index,'cell_type']=
-            sub_adata.obs['cell_type']+max(self.cell_adata.obs['cell_type'])+1
+            self.cell_adata.obs.loc[sub_adata.obs.index,'cell_type'] = sub_adata.obs['cell_type']+max(self.cell_adata.obs['cell_type'])+1
     
         
     def map_cell_type_to_spots(self, cellid):

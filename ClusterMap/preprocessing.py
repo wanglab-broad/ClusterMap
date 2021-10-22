@@ -64,7 +64,7 @@ def binarize_dapi(dapi,fast_preprocess,gauss_blur,sigma):
             dapi_stacked = np.amax(dapi_binary, axis=2)
     return(dapi_binary, dapi_stacked)
 
-def preprocessing_data(spots, dapi_grid_interval, dapi_binary,xy_radius,pct_filter):
+def preprocessing_data(spots, dapi_grid_interval, dapi_binary, LOF,contamination, xy_radius,pct_filter):
     '''
     Apply preprocessing on spots, thanks to dapi. 
     We remove the 10% spots with lowest density
@@ -99,12 +99,13 @@ def preprocessing_data(spots, dapi_grid_interval, dapi_binary,xy_radius,pct_filt
         spots.loc[noisy_points, 'is_noise'] = -1
         
         #LOF
-        # res_num_neighbors = [i.shape[0] for i in neigh_array]
-        # thresh = np.percentile(res_num_neighbors, 10)
-        # clf = LocalOutlierFactor(n_neighbors=int(thresh),contamination=0.1)
-        # spots_array = np.array(spots.loc[:, ['spot_location_2', 'spot_location_1','spot_location_3']])
-        # y_pred = clf.fit_predict(spots_array)
-        # spots.loc[y_pred==-1,'is_noise']=-1
+        if LOF:
+            res_num_neighbors = [i.shape[0] for i in neigh_array]
+            thresh = np.percentile(res_num_neighbors, 10)
+            clf = LocalOutlierFactor(n_neighbors=int(thresh),contamination=contamination)
+            spots_array = np.array(spots.loc[:, ['spot_location_2', 'spot_location_1','spot_location_3']])
+            y_pred = clf.fit_predict(spots_array)
+            spots.loc[y_pred==-1,'is_noise']=-1
         
         #spots in DAPI as inliers
         inDAPI_points= [i[0] and i[1] and i[2] for i in zip(spots_array[:,0]-1<dapi_binary.shape[0],
@@ -143,11 +144,12 @@ def preprocessing_data(spots, dapi_grid_interval, dapi_binary,xy_radius,pct_filt
         spots.loc[noisy_points, 'is_noise'] = -1
         
         #LOF
-        # thresh = np.percentile(res_num_neighbors, 10)
-        # clf = LocalOutlierFactor(n_neighbors=int(thresh),contamination=0.1)
-        # spots_array = np.array(spots.loc[:, ['spot_location_2', 'spot_location_1']])
-        # y_pred = clf.fit_predict(spots_array)
-        # spots.loc[y_pred==-1,'is_noise']=-1
+        if LOF: 
+            thresh = np.percentile(res_num_neighbors, 10)
+            clf = LocalOutlierFactor(n_neighbors=int(thresh),contamination=contamination)
+            spots_array = np.array(spots.loc[:, ['spot_location_2', 'spot_location_1']])
+            y_pred = clf.fit_predict(spots_array)
+            spots.loc[y_pred==-1,'is_noise']=-1
         
         #spots in DAPI as inliers
         test=dapi_binary[list(spots_array[:,0]-1),list(spots_array[:,1]-1)]
