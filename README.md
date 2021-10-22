@@ -66,10 +66,22 @@ model = ClusterMap(spots=spots, dapi=dapi, gene_list=gene_list, num_dims=num_dim
 - [x] Preprocess data
 
 ```
-model_tile.preprocess(dapi_grid_interval=3,pct_filter=pct_filter)
+model_tile.preprocess(dapi_grid_interval=5, pct_filter=0.1, LOF=False)
 ```
 
-​	*Paramters*
+> *Parameters*: 
+>
+> `dapi_grid_interval`: int (default: 5)
+>
+> ​	The size of sampling interval on DAPI image.
+>
+> `pct_filter`: float (between 0 and 1, default: 0.1)
+>
+> ​	The percentage of filtered noise reads.
+>
+> `LOF`: bool (default: False)
+>
+> ​	Choose if to apply [local noise rejction](https://scikit-learn.org/stable/auto_examples/neighbors/plot_lof_outlier_detection.html).
 
 - [x] Cell segmentation
 
