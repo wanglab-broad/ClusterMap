@@ -39,27 +39,30 @@
 
 ```
 model = ClusterMap(spots=spots, dapi=dapi, gene_list=gene_list, num_dims=num_dims,
-                   xy_radius=xy_radius,z_radius=0,fast_preprocess=True)
+                   xy_radius=xy_radius,z_radius=0,
+                   fast_preprocess=False,gauss_blur=False,sigma=1)
 ```
 
-> spots: pandas DataFrame.
+> `spots`: pandas DataFrame.
 >
-> dapi：numpy array.
+> `dapi`：numpy array.
 >
-> gene_list
+> `gene_list`: numpy array. An array of gene id values.
 >
-> num_dims: int. Number of data dimensions, 2 or 3.
+> `num_dims`: int. Number of data dimensions, 2 or 3.
 >
-> xy_radius: float. Estimation of radius of cells in x-y plane.
+> `xy_radius`: float. Estimation of radius of cells in x-y plane.
 >
-> z_radius: float. Estimation of radius of cells in z axis; 0 if data is 2D.
+> `z_radius`: float. Estimation of radius of cells in z axis; 0 if data is 2D.
 >
-> fast_preprocess: bool default
+> `fast_preprocess`: bool, default True. Binarize DAPI images with erosion and morphological reconstruction before OTSU thresholding when `True`. Binarize DAPI images with only OTSU thresholding when `False`.
+
+Note: binarized DAPI results are saved in model.dapi_binary (2D or 3D) and model.dapi_stacked (2D). A clean binarized DAPI image is essential for later processing.
 
 - [x] Preprocess data
 
 ```
-model_tile.preprocess(dapi_grid_interval=5, pct_filter=0.1, LOF=False)
+model_tile.preprocess(dapi_grid_interval=5, LOF=False, contamination=0.1, pct_filter=0.1)
 ```
 
 > `dapi_grid_interval`: int (default: 5).	The size of sampling interval on DAPI image.
@@ -67,12 +70,13 @@ model_tile.preprocess(dapi_grid_interval=5, pct_filter=0.1, LOF=False)
 > `pct_filter`: float (between 0 and 1, default: 0.1).	The percentage of filtered noise reads.
 >
 > `LOF`: bool (default: False).	Choose if to apply [local noise rejction](https://scikit-learn.org/stable/auto_examples/neighbors/plot_lof_outlier_detection.html).
->
+
+
 
 - [x] Cell segmentation
 
 ```
-model_tile.segmentation(cell_num_threshold=0.1,dapi_grid_interval=3,add_dapi=True,use_genedis=True)
+model_tile.segmentation(self,cell_num_threshold=0.01, dapi_grid_interval=5, add_dapi=True,use_genedis=True)
 ```
 
 ​	*Paramters*
