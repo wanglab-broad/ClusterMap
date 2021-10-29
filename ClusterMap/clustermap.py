@@ -22,7 +22,42 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
 class ClusterMap():
-
+    """
+    Variables:
+        *.spots: spatial transcriptomics data including spots location and gene identities.
+        *.dapi:  DAPI image corresponding to spots
+        *.dapi_binary: binarized DAPI image
+        *.dapi_stacked: 2D DAPI image
+        *.gene_list
+        *.num_dims: number of data dimensions
+        *.xy_radius 
+        *.z_radius 
+        *.cellcenter
+        *.all_points: coordinates of all points (RNA spots + DAPI sampled spots)
+        *.all_points_cellid: cell ID corresponding to *.all_points
+        *.cellid_unique: cell ID corresponding to *.cellcenter_unique (Only RNA spots)
+        *.cellcenter_unique: coordinates of cell centers
+        
+    
+    Functions:
+        *.preprocess - This function is designed for ....
+        *.segmentation - This function is designed for ....
+        *.create_convex_hulls
+        *.plot_gene
+        *.plot_segmentation
+        *.plot_segmentation_3D
+        *.calculate_metrics
+        *.save_segmentation
+        *.create_cell_adata
+        *.cell_preprocess
+        *.merge_multiple_clusters
+        *.cell_typing
+        *.plot_cell_typing
+        *.combine_cell_type
+        *.map_cell_type_to_spots
+        *.stitch
+    """
+    
     def __init__(self, spots, dapi, gene_list, num_dims, xy_radius,z_radius,fast_preprocess=False,gauss_blur=False,sigma=1):
         
         '''
@@ -33,11 +68,6 @@ class ClusterMap():
                     - num_dims (int) = number of dimensions for cell segmentation (2 or 3)
         '''
 
-        # self.spots = pd.read_csv(spot_path)
-        # self.dapi = tifffile.imread(dapi_path)
-        
-        # if len(self.dapi.shape) == 3:
-        #     self.dapi = np.transpose(self.dapi, (1,2,0))
         self.spots = spots
         self.dapi = dapi
         self.dapi_binary, self.dapi_stacked = binarize_dapi(self.dapi,fast_preprocess,gauss_blur, sigma)
@@ -59,6 +89,8 @@ class ClusterMap():
         '''
         
         spots_denoised = self.spots.loc[self.spots['is_noise']==0,:].copy()
+        if 'level_0' in self.spots.columns:
+            spots_denoised=spots_denoised.drop('level_0',axis=1)
         spots_denoised.reset_index(inplace=True)
         print(f'After denoising, mRNA spots: {spots_denoised.shape[0]}')
         
@@ -213,12 +245,15 @@ class ClusterMap():
                 cells_unique = np.unique(cell_ids)
                 spots_repr = self.all_points[cell_ids>=0]
                 cell_ids=cell_ids[cell_ids>=0]
-
-        
+        if len(cell_ids)==0:
+            print('Error:cell id is empty!')
+            return       
         if not show:
             plt.ioff()
         plt.figure(figsize=figsize)
         if cmap is None:
+            myList = [];
+
             cmap=np.random.rand(int(max(cell_ids)+1),3)
         
         if plot_dapi:
@@ -319,6 +354,7 @@ class ClusterMap():
             obs=pd.DataFrame(data=obs,columns=['col','row'])
         var = pd.DataFrame(index=genes[0])
         self.cell_adata = AnnData(X=gene_expr_vector, var=var, obs=obs)
+        
     def cell_preprocess(self, min_genes=3, min_cells=3, min_counts=5, 
                     n_neighbors=30, n_pcs=15):
         '''
@@ -511,6 +547,26 @@ class ClusterMap():
         ### stitch cell centers
         cell_info['cell_center'].append(model_tile.cellcenter_unique)
         cell_info['cellid'].append(model_tile.cellid_unique+model_cellid_max)
+        
+        if model_tilespots.shape[0]>0:
+            ### add all_points and all_points_cellid
+            updated_all_points=model_tile.all_points.copy()
+            updated_all_points[:,1]=updated_all_points[:,1]-model_tilespots.iloc[0]['spot_location_1']+ self.spots.loc[model_tilespots.iloc[0]['index'],'spot_location_1']
+            updated_all_points[:,0]=updated_all_points[:,0]-model_tilespots.iloc[0]['spot_location_2']+ self.spots.loc[model_tilespots.iloc[0]['index'],'spot_location_2']
+        
+            updated_all_points_cellid=model_tile.all_points_cellid.copy()
+            final_spots=[x in model_tilespots['clustermap'].unique() for x in updated_all_points_cellid]
+            updated_all_points_cellid=model_tile.all_points_cellid[final_spots]
+            updated_all_points = updated_all_points[final_spots,:]
+
+            try:
+                self.all_points_cellid
+                self.all_points_cellid=np.concatenate((self.all_points_cellid,updated_all_points_cellid),axis=0)
+                self.all_points=np.concatenate((self.all_points,updated_all_points),axis=0)
+            except:
+                self.all_points_cellid=updated_all_points_cellid
+                self.all_points=updated_all_points
+    
         return cell_info
 
 class StitchSpots():

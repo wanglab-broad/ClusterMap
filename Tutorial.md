@@ -113,7 +113,12 @@ model.plot_segmentation(figsize=(8,8),s=0.005,plot_with_dapi=True,plot_dapi=True
 model.plot_segmentation_3D(figsize=(8,8),elev=45, azim=-65)
 ```
 
-- [ ] Construct and plot convex hull of cells
+- [x] Construct and plot convex hull of cells
+
+```
+model.create_convex_hulls()
+```
+
 - [ ] Plot cell typing results
 
 ```

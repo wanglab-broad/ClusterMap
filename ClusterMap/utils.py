@@ -265,12 +265,13 @@ def get_img(img, spt, window_size, margin):
             if j==ncols:
                 h_end=img_.shape[1]
             if i!=0:
-                v_start=v_start+int(margin/2)
+                v_start=v_start+int(margin)
             if j!=0:
-                h_start=h_start+int(margin/2)
+                h_start=h_start+int(margin)
             img_[v_start:v_end, h_start:h_end]=ind
             ind=ind+1
-            
+    if img_.ndim==3:
+        img_=img_[:,:,0]
     return img_
 
 
@@ -303,10 +304,6 @@ def split(img, label_img, spt, window_size, margin):
                 v_end=img_.shape[0]
             if j==ncols:
                 h_end=img_.shape[1]
-            if i!=0:
-                v_start=v_start+int(margin/2)
-            if j!=0:
-                h_start=h_start+int(margin/2)
             
             cropped = img_[v_start:v_end, h_start:h_end]
             cropped_labelimg = label_img[v_start:v_end, h_start:h_end]

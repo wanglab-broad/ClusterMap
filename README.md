@@ -100,5 +100,5 @@ Contact us at clustermap.issue@gmail.com if you have any issues.
 
 #### Contributor
 
-Yichun He, Emma Bou Hanna, Jiahao Huang, Xin Tang
+Yichun He, Emma Bou Hanna, Jiahao Huang, Xin Tang, Zefang Tang
 
