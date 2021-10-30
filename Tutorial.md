@@ -55,9 +55,11 @@ model = ClusterMap(spots=spots, dapi=dapi, gene_list=gene_list, num_dims=num_dim
 >
 > `z_radius`: float. Estimation of radius of cells in z axis; 0 if data is 2D.
 >
-> `fast_preprocess`: bool, default True. Binarize DAPI images with erosion and morphological reconstruction before OTSU thresholding when `True`. Binarize DAPI images with only OTSU thresholding when `False`.
+> `fast_preprocess`: bool, default False. Binarize DAPI images with erosion and morphological reconstruction before OTSU thresholding when `True`. Binarize DAPI images with only OTSU thresholding when `False`.
 
-Note: binarized DAPI results are saved in model.dapi_binary (2D or 3D) and model.dapi_stacked (2D). A clean binarized DAPI image is essential for later processing.
+Output: binarized DAPI results are saved in model.dapi_binary (2D or 3D) and model.dapi_stacked (2D). 
+
+Note: A clean binarized DAPI image is essential for later processing so we suggest setting `fast_preprocess` False. If your DAPI images have special background noise, we suggesting additional denoising processing for DAPI images.
 
 - [x] Preprocess data
 
