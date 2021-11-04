@@ -526,21 +526,24 @@ class ClusterMap():
 
         
         ### stitch cell centers    
-        if model_tile.cellcenter_unique.shape[0]>0:
-            updated_all_points=model_tile.cellcenter_unique.copy()
-            updated_all_points[:,1]=updated_all_points[:,1]-model_tilespots.iloc[0]['spot_location_1']+ self.spots.loc[model_tilespots.iloc[0]['index'],'spot_location_1']
-            updated_all_points[:,0]=updated_all_points[:,0]-model_tilespots.iloc[0]['spot_location_2']+ self.spots.loc[model_tilespots.iloc[0]['index'],'spot_location_2']
-        
-            try:
-                self.cellid_unique
-                self.cellid_unique=np.concatenate((self.cellid_unique,
-                                                  model_tile.cellid_unique+model_cellid_max),axis=0)
-                self.cellcenter_unique=np.concatenate((self.cellcenter_unique,
-                                                  updated_all_points),axis=0)
-            except:
-                self.cellid_unique=model_tile.cellid_unique+model_cellid_max
-                self.cellcenter_unique=updated_all_points
-    
+        try:
+            model_tile.cellcenter_unique
+            if model_tile.cellcenter_unique.shape[0]>0:
+                updated_all_points=model_tile.cellcenter_unique.copy()
+                updated_all_points[:,1]=updated_all_points[:,1]-model_tilespots.iloc[0]['spot_location_1']+ self.spots.loc[model_tilespots.iloc[0]['index'],'spot_location_1']
+                updated_all_points[:,0]=updated_all_points[:,0]-model_tilespots.iloc[0]['spot_location_2']+ self.spots.loc[model_tilespots.iloc[0]['index'],'spot_location_2']
+
+                try:
+                    self.cellid_unique
+                    self.cellid_unique=np.concatenate((self.cellid_unique,
+                                                      model_tile.cellid_unique+model_cellid_max),axis=0)
+                    self.cellcenter_unique=np.concatenate((self.cellcenter_unique,
+                                                      updated_all_points),axis=0)
+                except:
+                    self.cellid_unique=model_tile.cellid_unique+model_cellid_max
+                    self.cellcenter_unique=updated_all_points
+        except:
+            1#pass
     
         if model_tilespots.shape[0]>0:
             ### add all_points and all_points_cellid
