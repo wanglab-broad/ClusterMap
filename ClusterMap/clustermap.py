@@ -35,8 +35,8 @@ class ClusterMap():
         *.cellcenter
         *.all_points: coordinates of all points (RNA spots + DAPI sampled spots)
         *.all_points_cellid: cell ID corresponding to *.all_points
-        *.cellid_unique: cell ID corresponding to *.cellcenter_unique (Only RNA spots)
-        *.cellcenter_unique: coordinates of cell centers
+        *.cellid_unique: values corrsponding to *.spots['clustermap']
+        *.cellcenter_unique: coordinates of cell centers, each row corresponding to *.cellcenter_unique (Only RNA spots)
         
     
     Functions:
@@ -195,24 +195,7 @@ class ClusterMap():
                 p.set_clim(vmin=0, vmax=max(colors))        
         # dapi_2D = (dapi_2D > 0).astype(np.int)
         plt.imshow(dapi_2D,cmap=plt.cm.gray_r,alpha=0.35,origin='lower')
-        plt.gca().add_collection(p)
-
-
-#         for cell in cells_unique:
-#             spots_portion = np.array(spots_repr[cell_ids==cell,:2])
-#             spots_portion=reject_outliers(spots_portion)
-# #             clf = LocalOutlierFactor(n_neighbors=3)
-# #             spots_portion = spots_portion[clf.fit_predict(spots_portion)==1,:]
-#             cell_mask = np.zeros(img_res.shape)
-#             cell_mask[spots_portion[:,0]-1, spots_portion[:,1]-1] = 1
-#             cell_ch = convex_hull_image(cell_mask)
-#             img_res[cell_ch==1] = cell
-#         self.ch_shape = img_res
-#         colors=list(np.random.rand(self.number_cell,3))
-#         img_res_rgb=label2rgb(img_res,colors=colors,bg_label=0, bg_color=bg_color)
-#         plt.figure(figsize=figsize)
-#         plt.imshow(img_res_rgb, origin='lower')
-#         plt.title('Cell Shape with Convex Hull')        
+        plt.gca().add_collection(p)      
     
     def plot_gene(self,marker_genes, genes_list, figsize=(5,5),c='r',s=1):
         for i in range(len(marker_genes)):
@@ -515,7 +498,7 @@ class ClusterMap():
 #         for ind,i in enumerate(self.cellid_unique):
 #             self.spots.loc[self.spots[cellid]==i,'cell_type']=int(self.cell_adata.obs['cell_type'][ind])
 
-    def stitch(self,model_tile,out,tile_num, cell_info ):
+    def stitch(self,model_tile,out,tile_num ):
         ### stitch based on label_img
         label_img=out.loc[tile_num,'label_img']       
         
@@ -538,16 +521,26 @@ class ClusterMap():
 
         ### stitch spots
         model_tilespots=model_tile.spots.loc[model_tile.spots['clustermap']>=0,:]
-#         model_tile.spots.loc[model_tile.spots['clustermap']>=0,'clustermap']+=model_cellid_max
-#         model_tile.cellid_unique+=model_cellid_max
-#         model_tilespots['clustermap']+=model_cellid_max
 
         self.spots.loc[model_tilespots['index'],'clustermap']=list(model_cellid_max+ model_tilespots['clustermap'])
 
-        ### stitch cell centers
-        cell_info['cell_center'].append(model_tile.cellcenter_unique)
-        cell_info['cellid'].append(model_tile.cellid_unique+model_cellid_max)
         
+        ### stitch cell centers        
+        updated_all_points=model_tile.cellcenter_unique.copy()
+        updated_all_points[:,1]=updated_all_points[:,1]-model_tilespots.iloc[0]['spot_location_1']+ self.spots.loc[model_tilespots.iloc[0]['index'],'spot_location_1']
+        updated_all_points[:,0]=updated_all_points[:,0]-model_tilespots.iloc[0]['spot_location_2']+ self.spots.loc[model_tilespots.iloc[0]['index'],'spot_location_2']
+        
+        try:
+            self.cellid_unique
+            self.cellid_unique=np.concatenate((self.cellid_unique,
+                                              model_tile.cellid_unique+model_cellid_max),axis=0)
+            self.cellcenter_unique=np.concatenate((self.cellcenter_unique,
+                                              updated_all_points),axis=0)
+        except:
+            self.cellid_unique=model_tile.cellid_unique+model_cellid_max
+            self.cellcenter_unique=updated_all_points
+    
+    
         if model_tilespots.shape[0]>0:
             ### add all_points and all_points_cellid
             updated_all_points=model_tile.all_points.copy()
@@ -567,31 +560,32 @@ class ClusterMap():
                 self.all_points_cellid=updated_all_points_cellid
                 self.all_points=updated_all_points
     
-        return cell_info
 
+    
+    
 class StitchSpots():
-    def __init__(self, path_res, config, res_name):
+    def __init__(self, path_res, path_config, res_name):
 
         '''
-        params :    - path_res (str) = root path of the results of ClusterMap's segmentation
+        params :    - path_res (str) = root path of the results of AutoSeg's segmentation
                     - path_config (str) = path of tile configuration
-                    - res_name (str) = name of the column where ClusterMap's results are stored in each dataset
+                    - res_name (str) = name of the column where AutoSeg's results are stored in each dataset
         '''
         
         self.path_res = path_res
+        self.path_config = path_config
         self.res_name = res_name
-        self.config = config
        
+    def gather_tiles(self):
+        print('Gathering tiles')
+        self.spots_gathered = gather_all_tiles(self.path_res, self.res_name)
 
     def stitch_tiles(self):
-#         if ifconfig:
-#             print('Loading config')
-#             self.config = load_tile_config(path_config)
-#         else:
-        
+        print('Loading config')
+        self.config = load_tile_config(self.path_config)
         print('Stitching tiles')
-        self.img = create_img_label(self)
-        self.spots_all = stitch_all_tiles(self)
+        self.img, self.num_col, self.num_row = create_img_label(self.config)
+        self.spots_all = stitch_all_tiles(self.spots_gathered, self.img, self.num_col, self.num_row, self.config, self.res_name)
     
     def plot_stitched_data(self, figsize=(16,10), s=0.5):
         spots_all_repr = self.spots_all.loc[self.spots_all['cellid']>=0,:]

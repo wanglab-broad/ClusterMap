@@ -3,28 +3,28 @@ import pandas as pd
 import os
 from tqdm import tqdm
 
-# def load_tile_config(path):
-#         tile_config = np.loadtxt(path, dtype='str', delimiter=';')
-#         df_config = pd.DataFrame(columns=['Tile', 'X_init', 'Y_init'])
-#         df_config['Tile'] = list(map(lambda x: x[:-4],tile_config[:,0]))
-#         df_config['Tile'] = list(map(lambda x: int(x.split('tile_')[-1]), df_config['Tile']))
-#         coord_list = list(map(lambda x: x.split(', '), tile_config[:,-1]))
-#         x_list = list(map(lambda x: float(x[0].split(' (')[-1]), coord_list))
-#         y_list = list(map(lambda x: float(x[1].split(')')[0]), coord_list))
+def load_tile_config(path):
+    tile_config = np.loadtxt(path, dtype='str', delimiter=';')
+    df_config = pd.DataFrame(columns=['Tile', 'X_init', 'Y_init'])
+    df_config['Tile'] = list(map(lambda x: x[:-4],tile_config[:,0]))
+    df_config['Tile'] = list(map(lambda x: int(x.split('tile_')[-1]), df_config['Tile']))
+    coord_list = list(map(lambda x: x.split(', '), tile_config[:,-1]))
+    x_list = list(map(lambda x: float(x[0].split(' (')[-1]), coord_list))
+    y_list = list(map(lambda x: float(x[1].split(')')[0]), coord_list))
 
-#         df_config['X_init'] = list(map(lambda x: int(x),x_list))
-#         df_config['Y_init'] = list(map(lambda x: int(x), y_list))
-#     return(df_config)
+    df_config['X_init'] = list(map(lambda x: int(x),x_list))
+    df_config['Y_init'] = list(map(lambda x: int(x), y_list))
+    return(df_config)
 
-# def gather_all_tiles(path, res_name):
-#     tiles = os.listdir(path)
-#     testspots=pd.read_csv(path+tiles[0])
-#     spots_results = pd.DataFrame(columns=testspots.columns)
-#     for tile in tqdm(tiles):
-#         spots = pd.read_csv(path + tile)
-#         spots.loc[spots[res_name]==-1, res_name] = -2
-#         spots_results = spots_results.append(spots)
-#     return(spots_results)
+def gather_all_tiles(path, res_name):
+    tiles = os.listdir(path)
+    spots_results = pd.DataFrame(columns=['spot_location_1', 'spot_location_2', 'spot_location_3', 'spot_image_position','gene', res_name])
+    for tile in tiles:
+        spots = pd.read_csv(path + tile)
+        spots = spots[['spot_location_1', 'spot_location_2', 'spot_location_3', 'spot_image_position', 'gene', res_name]]
+        spots.loc[spots[res_name]==-1, res_name] = -2
+        spots_results = spots_results.append(spots)
+    return(spots_results)
 
 def create_img_label(self ):
 #     num_col = np.sum(df_config['X_init']==0)
