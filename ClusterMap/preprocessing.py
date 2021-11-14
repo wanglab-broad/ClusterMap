@@ -34,7 +34,7 @@ def binarize_dapi(dapi,fast_preprocess,gauss_blur,sigma):
                 binary = dapi_one_page >= thresh
                 dapi_binary.append(binary) #z,y,x
                 ### erosion on dapi binary
-            dapi_binary = np.array(dapi_binary).transpose((1,2,0))#y,x,z        
+            dapi_binary = np.array(dapi_binary).transpose((1,2,0))#y,x,z 
             dapi_stacked = np.amax(dapi_binary, axis=2)
 
     else:
@@ -45,6 +45,7 @@ def binarize_dapi(dapi,fast_preprocess,gauss_blur,sigma):
             thresh = threshold_otsu(dapi_recon)
             binary = dapi_recon >= thresh
             dapi_binary=np.array(binary).astype(float)
+            dapi_binary[dapi==0]=False
             dapi_stacked = dapi_binary
         else:
             dapi_binary=[]
@@ -61,7 +62,9 @@ def binarize_dapi(dapi,fast_preprocess,gauss_blur,sigma):
                 dapi_binary.append(binary) #z,y,x
                 ### erosion on dapi binary
             dapi_binary = np.array(dapi_binary).transpose((1,2,0))#y,x,z        
+            dapi_binary[dapi==0]=False
             dapi_stacked = np.amax(dapi_binary, axis=2)
+    
     return(dapi_binary, dapi_stacked)
 
 def preprocessing_data(spots, dapi_grid_interval, dapi_binary, LOF,contamination, xy_radius,pct_filter):
