@@ -208,7 +208,7 @@ def DPC(self,all_coord, all_ngc, cell_num_threshold, spearman_metric=spearman_me
         change_value=start_value-middle_value
         curve=(change_value/(change_value[1]-change_value[-1]))
 
-        for indi,i in enumerate(curve):
+        for indi,i in enumerate(curve[:-1]):
             if i<cell_num_threshold  and  curve[indi+1]<cell_num_threshold:
                 number_cell=number_cell+(indi)*10
                 break
