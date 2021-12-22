@@ -12,8 +12,15 @@ This repository contains an available tool for ClusterMap for multi-scale cluste
 
 ### Install
 
-> pip install git+https://github.com/LiuLab-Bioelectronics-Harvard/ClusterMap.git
+ 
+> git clone https://github.com/wanglab-broad/ClusterMap.git
+> 
+> cd ClusterMap
+> 
+>pip install -e.
 
+For the environment, to use .yml file:
+`conda env create -f environment.yml`. This will create an environment named ClusterMap with required packages.
 ***
 
 <br >
