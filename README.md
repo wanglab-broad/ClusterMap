@@ -6,7 +6,8 @@ This repository contains an available tool for ClusterMap for multi-scale cluste
 
 - **A h5ad file for STARmap placenta dataset can be accessed at [here](./datasets/STARmap_placenta/README.md).**
 
-  
+***
+<br >
 
 <img src="./datasets/FeaturedImage.jpg" alt="FeaturedImage" style="zoom:10%;" />
 
