@@ -6,7 +6,9 @@ This repository contains an available tool for ClusterMap for multi-scale cluste
 
 - **STARmap placenta dataset can be accessed at [here](./datasets/STARmap_placenta/README.md).**
 
-- **Raw fluorescent imaging data can be accessed at [here]()**
+- **Raw fluorescent imaging data can be accessed at [here](./datasets/RawImage/README.md).**
+
+
 ***
 <br >
 
