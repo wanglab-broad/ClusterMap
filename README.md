@@ -4,7 +4,7 @@ This repository contains an available tool for ClusterMap for multi-scale cluste
 
 - **Original scripts for generating data at ClusterMap paper are at: https://codeocean.com/capsule/9820099/tree/v1.**
 
-- **A h5ad file for STARmap placenta dataset can be accessed at [here](./datasets/STARmap_placenta/README.md).**
+- **STARmap placenta dataset can be accessed at [here](./datasets/STARmap_placenta/README.md).**
 
 ***
 <br >
