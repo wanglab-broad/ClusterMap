@@ -3,4 +3,4 @@
  
 - STARmap mouse V1 28-gene (1545 x 1545 x 100 μm) [here](https://drive.google.com/drive/folders/1wv3T4E7nXFtOiKb5omvcEpzHlAuNU05b?usp=sharing).
 
-- ch05 is usually DAPI staining.
+- `ch01-04` is four rounds of imaging. `ch05` is usually DAPI staining.
