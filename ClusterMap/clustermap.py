@@ -84,7 +84,7 @@ class ClusterMap():
         self.cellcenter = None
     
     def preprocess(self,dapi_grid_interval=5, LOF=False, contamination=0.1, pct_filter=0.1):
-        preprocessing_data(self.spots, dapi_grid_interval, self.dapi_binary, LOF,contamination, self.xy_radius,pct_filter)
+        self.spots = preprocessing_data(self.spots, dapi_grid_interval, self.dapi_binary, LOF,contamination, self.xy_radius,pct_filter)
 
     def segmentation(self,cell_num_threshold=0.01, dapi_grid_interval=5, add_dapi=True,use_genedis=True):
         
