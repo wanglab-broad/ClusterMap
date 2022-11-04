@@ -117,5 +117,5 @@ Contact us at clustermap.issue@gmail.com if you have any issues.
 [Yichun He](https://github.com/heihaizhengdong), 
 [Emma Bou Hanna](https://github.com/EmmaBouhanna), 
 [Jiahao Huang](https://github.com/jiahaoh), 
-[Xin Tang](https://github.com/xintangg)
+[Xin Tang](https://github.com/xintangg),
 [Haowen Zhou](https://github.com/Pixel-Dream)
