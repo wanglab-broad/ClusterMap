@@ -114,5 +114,8 @@ If you find ClusterMap useful for your work, please cite our paper:
 Contact us at clustermap.issue@gmail.com if you have any issues.
 
 #### Contributor
-
-Yichun He, Emma Bou Hanna, Jiahao Huang, Xin Tang, Haowen Zhou
+[Yichun He](https://github.com/heihaizhengdong), 
+[Emma Bou Hanna](https://github.com/EmmaBouhanna), 
+[Jiahao Huang](https://github.com/jiahaoh), 
+[Xin Tang](https://github.com/xintangg)
+[Haowen Zhou](https://github.com/Pixel-Dream)
