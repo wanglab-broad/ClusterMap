@@ -111,10 +111,10 @@ If you find ClusterMap useful for your work, please cite our paper:
 
 #### Contact
 
-Contact us at clustermap.issue@gmail.com if you have any issues.
+Contact us at yichunhe00@gmail.com if you have any issues.
 
 #### Contributor
-[Yichun He](https://github.com/heihaizhengdong), 
+[Yichun He](https://github.com/yichunher), 
 [Emma Bou Hanna](https://github.com/EmmaBouhanna), 
 [Jiahao Huang](https://github.com/jiahaoh), 
 [Xin Tang](https://github.com/xintangg),
