@@ -1,6 +1,6 @@
-# ClusterMap
+# FuseMap
 
-This repository contains an available tool for ClusterMap for multi-scale clustering analysis of spatial gene expression, and ClusterMap examples of the 3D STARmap human cardiac organoid dataset, 2D STARmap mouse brain V1 dataset, and 3D STARmap mouse brain V1 dataset.
+Integrate multiple spatial transcripomics by generating universal gene, cell, and tissue embeddings.
 
 - **Original scripts for generating data at ClusterMap paper are at: https://codeocean.com/capsule/9820099/tree/v1.**
 
