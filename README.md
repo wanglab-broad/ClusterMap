@@ -71,6 +71,8 @@ For the environment, to use .yml file:
 
 - `model.cellcenter_unique`:  cell centers in order of `model.cellid_unique`
 
+If you want to generate mask from points, refer to the notebook [here](./datasets/generate_mask.ipynb).
+
 #### 
 
 #### Analysis on STARmap 2D V1 1020-gene sample
@@ -86,6 +88,7 @@ For the environment, to use .yml file:
 
 
 #### Analysis on STARmap 3D V1 28-gene sample
+
 
 
 
