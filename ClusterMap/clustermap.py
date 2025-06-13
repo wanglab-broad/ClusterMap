@@ -416,8 +416,8 @@ class ClusterMap():
         elif cluster_method == 'louvain':
             sc.tl.louvain(adata, resolution=resol, random_state=random_state, key_added=target_name)
         elif cluster_method == 'aggre':
-            cluster = AgglomerativeClustering(n_clusters=n_clusters,
-                                              affinity='euclidean', linkage='ward')
+            cluster = AgglomerativeClustering(n_clusters=n_clusters, metric='euclidean', linkage='ward')
+
             adata.obs[target_name] = cluster.fit_predict(adata.obsm['X_pca']).astype(str)
         num_cluster=len(adata.obs[target_name].unique() )
         print(f'Get {num_cluster} clusters')
